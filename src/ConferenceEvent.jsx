@@ -3,11 +3,14 @@ import "./ConferenceEvent.css";
 import TotalCost from "./TotalCost";
 import { useSelector, useDispatch } from "react-redux";
 import { incrementQuantity, decrementQuantity } from "./venueSlice";
+import { incrementAvQuantity, decrementAvQuantity } from "./avSlice";
+import { toggleMealSelection } from "./mealsSlice";
 const ConferenceEvent = () => {
     const [showItems, setShowItems] = useState(false);
     const [numberOfPeople, setNumberOfPeople] = useState(1);
     const venueItems = useSelector((state) => state.venue);
     const avItems = useSelector((state) => state.av);
+    const mealsItem = useSelector((state) => state.meals);
     const dispatch = useDispatch();
     const remainingAuditoriumQuantity = 3 - venueItems.find(item => item.name === "Auditorium Hall (Capacity:200)").quantity;
 
@@ -30,18 +33,51 @@ const ConferenceEvent = () => {
         }
       };
     const handleIncrementAvQuantity = (index) => {
+        dispatch(incrementAvQuantity(index));
     };
 
     const handleDecrementAvQuantity = (index) => {
+        dispatch(decrementAvQuantity(index));
     };
 
     const handleMealSelection = (index) => {
-       
+       const item = mealsItem[index];
+       if (item.selected && item.type === "mealForPeople") {
+            // Ensure numberOfPeople is set before toggling selection
+            const newNumberOfPeople = item.selected ? numberOfPeople : 0;
+            dispatch(toggleMealSelection(index, newNumberOfPeople));
+        }
+        else {
+            dispatch(toggleMealSelection(index));
+        }
     };
 
     const getItemsFromTotalCost = () => {
         const items = [];
-    };
+        venueItems.forEach((item) => {
+          if (item.quantity > 0) {
+            items.push({ ...item, type: "venue" });
+          }
+        });
+        avItems.forEach((item) => {
+          if (
+            item.quantity > 0 &&
+            !items.some((i) => i.name === item.name && i.type === "av")
+          ) {
+            items.push({ ...item, type: "av" });
+          }
+        });
+        mealsItems.forEach((item) => {
+          if (item.selected) {
+            const itemForDisplay = { ...item, type: "meals" };
+            if (item.numberOfPeople) {
+              itemForDisplay.numberOfPeople = numberOfPeople;
+            }
+            items.push(itemForDisplay);
+          }
+        });
+        return items;
+      };
 
     const items = getItemsFromTotalCost();
 
@@ -54,10 +90,25 @@ const ConferenceEvent = () => {
           venueItems.forEach((item) => {
             totalCost += item.cost * item.quantity;
           });
+        } else if (section === "av") {
+            avItems.forEach((item) => {
+            totalCost += item.cost * item.quantity;
+            });
+        } else if (section === "meals") {
+            mealsItems.forEach((item) => {
+            totalCost += item.cost * item.quantity;
+            });
         }
         return totalCost;
       };
     const venueTotalCost = calculateTotalCost("venue");
+    const avTotalCost = calculateTotalCost("av");
+    const mealsTotalCost = calculateTotalCost("meals");
+    const totalCosts = {
+        venue: venueTotalCost,
+        av: avTotalCost,
+        meals: mealsTotalCost,
+    }
 
     const navigateToProducts = (idType) => {
         if (idType == '#venue' || idType == '#addons' || idType == '#meals') {
@@ -173,7 +224,7 @@ const ConferenceEvent = () => {
                                     </div>
                                 ))}
                                 </div>
-                                <div className="total_cost">Total Cost:</div>
+                                <div className="total_cost">Total Cost: {avTotalCost}</div>
 
                             </div>
 
@@ -187,12 +238,27 @@ const ConferenceEvent = () => {
                                 </div>
 
                                 <div className="input-container venue_selection">
-
+                                    <label htmlFor="numberOfPeople"><h3>Number of People:</h3></label>
+                                    <input type="number" className="input_box5" id="numberOfPeople" value={numberOfPeople}
+                                        onChange={(e) => setNumberOfPeople(parseInt(e.target.value))}
+                                        min="1"
+                                    />
                                 </div>
                                 <div className="meal_selection">
-
+                                    {mealsItems.map((item, index) => (
+                                        <div className="meal_item" key={index} style={{ padding: 15 }}>
+                                            <div className="inner">
+                                                <input type="checkbox" id={ `meal_${index}` }
+                                                    checked={ item.selected }
+                                                    onChange={() => handleMealSelection(index)}
+                                                />
+                                                <label htmlFor={`meal_${index}`}> {item.name} </label>
+                                            </div>
+                                            <div className="meal_cost">${item.cost}</div>
+                                        </div>
+                                    ))}
                                 </div>
-                                <div className="total_cost">Total Cost: </div>
+                                <div className="total_cost">Total Cost: {mealsTotalCost}</div>
 
 
                             </div>
